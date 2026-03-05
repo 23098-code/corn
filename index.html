@@ -1,11 +1,13 @@
 <script>
 
+window.addEventListener("load", async function(){
+
 const URL="./";
 
 let model;
-let video;
-let preview;
-let resultText;
+let video=document.getElementById("video");
+let preview=document.getElementById("preview");
+let resultText=document.getElementById("result");
 let stream;
 
 const diseaseInfo={
@@ -50,7 +52,7 @@ video.srcObject=stream;
 
 }
 
-function capture(){
+window.capture=function(){
 
 const canvas=document.createElement("canvas");
 
@@ -66,7 +68,7 @@ video.style.display="none";
 
 }
 
-function uploadImage(event){
+window.uploadImage=function(event){
 
 const reader=new FileReader();
 
@@ -82,7 +84,7 @@ reader.readAsDataURL(event.target.files[0]);
 
 }
 
-async function classify(){
+window.classify=async function(){
 
 if(!model){
 resultText.innerHTML="โมเดลยังโหลดไม่เสร็จ";
@@ -106,15 +108,9 @@ resultText.innerHTML=
 
 }
 
-window.onload=async()=>{
-
-video=document.getElementById("video");
-preview=document.getElementById("preview");
-resultText=document.getElementById("result");
-
 await loadModel();
 await startCamera();
 
-}
+});
 
 </script>
