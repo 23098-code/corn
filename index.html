@@ -6,11 +6,8 @@
 
 <title>Corn Disease Classifier</title>
 
-<!-- TensorFlow -->
-<script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-
-<!-- Teachable Machine -->
-<script defer src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
 <style>
 body{
@@ -67,5 +64,148 @@ background:white;
 color:black;
 }
 </style>
-
 </head>
+
+<body>
+
+<div class="container">
+
+<h2>🌽 โปรแกรมจำแนกโรคใบข้าวโพด</h2>
+
+<video id="video" autoplay playsinline></video>
+<img id="preview" style="display:none;">
+
+<div>
+<button class="primary" onclick="capture()">📸 ถ่ายภาพ</button>
+<button class="secondary" onclick="retake()">🔄 ถ่ายใหม่</button>
+<button class="secondary" onclick="classify()">🔍 จำแนก</button>
+</div>
+
+<div>
+<input type="file" accept="image/*" onchange="uploadImage(event)">
+</div>
+
+<div id="result">กำลังโหลดโมเดล...</div>
+
+</div>
+
+<script>
+
+const URL="./";
+
+let model;
+let video=document.getElementById("video");
+let preview=document.getElementById("preview");
+let resultText=document.getElementById("result");
+let stream;
+
+const diseaseInfo={
+blight:{
+thai:"โรคใบไหม้",
+advice:"ตัดใบที่เป็นโรคออก ลดความชื้น และพ่นสารป้องกันเชื้อรา"
+},
+gray:{
+thai:"โรคใบจุดสีเทา",
+advice:"ปลูกให้โปร่ง ลดความชื้น และพ่นสารป้องกันเชื้อรา"
+},
+rust:{
+thai:"โรคราสนิม",
+advice:"เก็บใบที่เป็นโรคออก และพ่นสารป้องกันเชื้อรา"
+},
+health:{
+thai:"ใบสุขภาพดี",
+advice:"ดูแลตามปกติ ให้น้ำและปุ๋ยเหมาะสม"
+}
+};
+
+async function loadModel(){
+
+const modelURL=URL+"model.json";
+const metadataURL=URL+"metadata.json";
+
+model=await tmImage.load(modelURL,metadataURL);
+
+resultText.innerHTML="พร้อมใช้งาน ✅";
+
+}
+
+async function startCamera(){
+
+stream=await navigator.mediaDevices.getUserMedia({video:true});
+video.srcObject=stream;
+
+}
+
+function capture(){
+
+const canvas=document.createElement("canvas");
+canvas.width=video.videoWidth;
+canvas.height=video.videoHeight;
+
+const ctx=canvas.getContext("2d");
+ctx.drawImage(video,0,0);
+
+preview.src=canvas.toDataURL();
+preview.style.display="block";
+video.style.display="none";
+
+}
+
+function retake(){
+
+preview.style.display="none";
+video.style.display="block";
+
+}
+
+function uploadImage(event){
+
+const reader=new FileReader();
+
+reader.onload=function(e){
+
+preview.src=e.target.result;
+preview.style.display="block";
+video.style.display="none";
+
+}
+
+reader.readAsDataURL(event.target.files[0]);
+
+}
+
+async function classify(){
+
+if(!model){
+resultText.innerHTML="โมเดลยังโหลดไม่เสร็จ";
+return;
+}
+
+const prediction=await model.predict(preview);
+
+let best=prediction.reduce((a,b)=>a.probability>b.probability?a:b);
+
+let info=diseaseInfo[best.className];
+
+if(info){
+
+resultText.innerHTML=
+`ผลลัพธ์: <b>${info.thai}</b><br>
+ความมั่นใจ ${(best.probability*100).toFixed(2)}%<br><br>
+วิธีดูแล:<br>${info.advice}`;
+
+}
+
+}
+
+window.onload=async()=>{
+
+await loadModel();
+await startCamera();
+
+}
+
+</script>
+
+</body>
+</html>
