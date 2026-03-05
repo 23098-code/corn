@@ -31,8 +31,14 @@
             margin-top: 15px;
             background: #000;
         }
-        button, input[type="file"] {
-            margin: 8px;
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        button {
             padding: 12px 20px;
             border: none;
             border-radius: 30px;
@@ -44,19 +50,24 @@
             background: linear-gradient(90deg, #00c853, #00e676);
             color: black;
         }
-        .primary:hover { transform: scale(1.05); }
         .secondary {
             background: rgba(255, 255, 255, 0.25);
             color: white;
         }
-        .secondary:hover { background: rgba(255, 255, 255, 0.35); }
+        .flip-btn {
+            background: #f39c12;
+            color: white;
+        }
         #result {
             margin-top: 15px;
             line-height: 1.6;
         }
         input[type="file"] {
+            margin-top: 15px;
             background: white;
             color: black;
+            padding: 8px;
+            border-radius: 10px;
             width: 80%;
         }
     </style>
@@ -64,20 +75,19 @@
 
 <body>
     <div class="container">
-        <h2>🌽 โปรแกรมจำแนกโรคใบข้าวโพด</h2>
+        <h2>🌽 จำแนกโรคใบข้าวโพด</h2>
 
         <video id="video" autoplay playsinline></video>
         <img id="preview" style="display:none;">
 
-        <div>
+        <div class="button-group">
             <button class="primary" onclick="capture()">📸 ถ่ายภาพ</button>
-            <button class="secondary" onclick="retake()">🔄 ถ่ายใหม่</button>
-            <button class="secondary" id="classifyBtn" onclick="classify()" disabled>🔍 จำแนก</button>
+            <button class="flip-btn" id="flipBtn" onclick="flipCamera()">🔄 สลับกล้อง</button>
+            <button class="secondary" onclick="retake()">♻️ เริ่มใหม่</button>
+            <button class="primary" id="classifyBtn" onclick="classify()" disabled style="background:#3498db; color:white;">🔍 วิเคราะห์</button>
         </div>
 
-        <div>
-            <input type="file" accept="image/*" onchange="uploadImage(event)">
-        </div>
+        <input type="file" accept="image/*" onchange="uploadImage(event)">
 
         <div id="result">กำลังโหลดโมเดล...</div>
     </div>
@@ -87,13 +97,14 @@
 
     <script>
         let model;
+        let currentFacingMode = "environment"; // เริ่มต้นที่กล้องหลัง
         const video = document.getElementById("video");
         const preview = document.getElementById("preview");
         const resultText = document.getElementById("result");
         const classifyBtn = document.getElementById("classifyBtn");
 
         const diseaseInfo = {
-            "blight": { thai: "โรคใบไหม้แผลใหญ่", advice: "ตัดใบที่เป็นโรคออก ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
+            "blight": { thai: "โรคใบไหม้", advice: "ตัดใบที่เป็นโรคออก ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
             "gray": { thai: "โรคใบจุดสีเทา", advice: "ปลูกให้โปร่ง ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
             "rust": { thai: "โรคราสนิม", advice: "เก็บใบที่เป็นโรคออก และพ่นสารป้องกันเชื้อรา" },
             "health": { thai: "ใบสุขภาพดี", advice: "ดูแลตามปกติ ให้น้ำและปุ๋ยเหมาะสม" }
@@ -101,29 +112,36 @@
 
         async function loadModel() {
             try {
-                // ตรวจสอบว่า tmImage โหลดมาหรือยัง
                 if (typeof tmImage !== 'undefined') {
                     model = await tmImage.load("model.json", "metadata.json");
-                    resultText.innerHTML = "พร้อมใช้งาน ✅";
+                    resultText.innerHTML = "โมเดลพร้อมใช้งาน ✅";
                     classifyBtn.disabled = false;
-                } else {
-                    throw new Error("Library ไม่โหลด");
                 }
             } catch (err) {
-                resultText.innerHTML = "โหลดโมเดลไม่สำเร็จ ❌ (เช็คไฟล์ model.json)";
-                console.error(err);
+                resultText.innerHTML = "❌ โหลดโมเดลไม่สำเร็จ";
             }
         }
 
         async function startCamera() {
+            if (window.stream) {
+                window.stream.getTracks().forEach(track => track.stop());
+            }
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "environment" } 
-                });
+                const constraints = {
+                    video: { facingMode: currentFacingMode }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                window.stream = stream;
                 video.srcObject = stream;
             } catch (err) {
-                resultText.innerHTML = "⚠️ เข้าถึงกล้องไม่ได้ (โปรดเลือกรูปภาพแทน)";
+                resultText.innerHTML = "⚠️ เข้าถึงกล้องไม่ได้";
             }
+        }
+
+        async function flipCamera() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            await startCamera();
         }
 
         function capture() {
@@ -135,11 +153,13 @@
             preview.src = canvas.toDataURL("image/png");
             preview.style.display = "block";
             video.style.display = "none";
+            document.getElementById("flipBtn").style.display = "none";
         }
 
         function retake() {
             preview.style.display = "none";
             video.style.display = "block";
+            document.getElementById("flipBtn").style.display = "inline-block";
             resultText.innerHTML = "พร้อมใช้งาน ✅";
         }
 
@@ -151,16 +171,13 @@
                 preview.src = e.target.result;
                 preview.style.display = "block";
                 video.style.display = "none";
+                document.getElementById("flipBtn").style.display = "none";
             };
             reader.readAsDataURL(file);
         }
 
         async function classify() {
-            if (!model) return;
-            if (preview.style.display === "none") {
-                resultText.innerHTML = "กรุณาถ่ายภาพหรือเลือกรูปก่อน";
-                return;
-            }
+            if (!model || preview.style.display === "none") return;
 
             resultText.innerHTML = "⌛ กำลังวิเคราะห์...";
             const prediction = await model.predict(preview);
@@ -169,13 +186,13 @@
 
             if (info) {
                 resultText.innerHTML = `
-                    <span style="font-size: 20px;">ผลลัพธ์: <b>${info.thai}</b></span><br>
-                    ความมั่นใจ: ${(best.probability * 100).toFixed(2)}%<br>
-                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; margin-top: 10px;">
-                        🩺 <b>วิธีดูแล:</b><br>${info.advice}
+                    <span style="font-size: 1.2rem;"><b>${info.thai}</b></span><br>
+                    มั่นใจ: ${(best.probability * 100).toFixed(2)}%<br>
+                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; margin-top: 10px; font-size: 0.9rem;">
+                        🩺 <b>วิธีดูแล:</b> ${info.advice}
                     </div>`;
             } else {
-                resultText.innerHTML = `ผลลัพธ์: <b>${best.className}</b><br>มั่นใจ: ${(best.probability * 100).toFixed(2)}%`;
+                resultText.innerHTML = `ไม่สามารถระบุได้ชัดเจน (${best.className})`;
             }
         }
 
