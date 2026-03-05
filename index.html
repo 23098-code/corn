@@ -5,154 +5,184 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Corn Disease Classifier</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #f4f6f7; padding: 20px; }
-        h1 { color: #2c3e50; }
-        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button { padding: 12px 24px; margin: 10px; font-size: 16px; cursor: pointer; border: none; background: #2ecc71; color: white; border-radius: 8px; transition: 0.3s; }
-        button:hover { background: #27ae60; }
-        button:disabled { background: #bdc3c7; cursor: not-allowed; }
-        video, img { width: 100%; max-width: 400px; margin-top: 10px; border-radius: 10px; border: 2px solid #ddd; }
-        #result { margin-top: 20px; font-size: 18px; padding: 15px; border-radius: 10px; background: #eef2f3; min-height: 50px; }
-        .loading { color: #f39c12; font-weight: bold; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f3d2e, #145c43, #1f7a5a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            width: 90%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        video, img {
+            width: 100%;
+            border-radius: 15px;
+            margin-top: 15px;
+            background: #000;
+        }
+        button, input[type="file"] {
+            margin: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .primary {
+            background: linear-gradient(90deg, #00c853, #00e676);
+            color: black;
+        }
+        .primary:hover { transform: scale(1.05); }
+        .secondary {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+        }
+        .secondary:hover { background: rgba(255, 255, 255, 0.35); }
+        #result {
+            margin-top: 15px;
+            line-height: 1.6;
+        }
+        input[type="file"] {
+            background: white;
+            color: black;
+            width: 80%;
+        }
     </style>
 </head>
+
 <body>
+    <div class="container">
+        <h2>🌽 โปรแกรมจำแนกโรคใบข้าวโพด</h2>
 
-<div class="container">
-    <h1>Corn Disease Classifier 🌽</h1>
-
-    <div id="camera-container">
         <video id="video" autoplay playsinline></video>
         <img id="preview" style="display:none;">
+
+        <div>
+            <button class="primary" onclick="capture()">📸 ถ่ายภาพ</button>
+            <button class="secondary" onclick="retake()">🔄 ถ่ายใหม่</button>
+            <button class="secondary" id="classifyBtn" onclick="classify()" disabled>🔍 จำแนก</button>
+        </div>
+
+        <div>
+            <input type="file" accept="image/*" onchange="uploadImage(event)">
+        </div>
+
+        <div id="result">กำลังโหลดโมเดล...</div>
     </div>
 
-    <br>
-    <button id="captureBtn" onclick="capture()">📸 ถ่ายภาพ</button>
-    <button id="reCamBtn" onclick="retake()" style="display:none; background:#e67e22;">🔄 เปิดกล้องใหม่</button>
-    
-    <br>
-    <p>หรืออัปโหลดรูปภาพ:</p>
-    <input type="file" accept="image/*" onchange="uploadImage(event)">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
-    <br><br>
-    <button id="classifyBtn" onclick="classify()" disabled>🔍 จำแนกโรค</button>
+    <script>
+        let model;
+        const video = document.getElementById("video");
+        const preview = document.getElementById("preview");
+        const resultText = document.getElementById("result");
+        const classifyBtn = document.getElementById("classifyBtn");
 
-    <div id="result">กำลังโหลดโมเดล (TensorFlow.js)...</div>
-</div>
+        const diseaseInfo = {
+            "blight": { thai: "โรคใบไหม้แผลใหญ่", advice: "ตัดใบที่เป็นโรคออก ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
+            "gray": { thai: "โรคใบจุดสีเทา", advice: "ปลูกให้โปร่ง ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
+            "rust": { thai: "โรคราสนิม", advice: "เก็บใบที่เป็นโรคออก และพ่นสารป้องกันเชื้อรา" },
+            "health": { thai: "ใบสุขภาพดี", advice: "ดูแลตามปกติ ให้น้ำและปุ๋ยเหมาะสม" }
+        };
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
-
-<script>
-    const URL = "./"; 
-    let model, video, preview, resultText, classifyBtn;
-
-    const diseaseInfo = {
-        "blight": { thai: "โรคใบไหม้แผลใหญ่ (Blight)", advice: "ตัดใบที่เป็นโรคออก ทำลายซากพืช และพ่นสารป้องกันกำจัดเชื้อรากลุ่ม Mancozeb" },
-        "gray": { thai: "โรคใบจุดสีเทา (Gray Leaf Spot)", advice: "ปลูกพืชหมุนเวียน ลดความหนาแน่นของการปลูก และพ่นสารกลุ่ม Azoxystrobin" },
-        "rust": { thai: "โรคราสนิม (Common Rust)", advice: "ใช้พันธุ์ต้านทาน พ่นสารกลุ่ม Cyproconazole เมื่อพบการระบาด" },
-        "health": { thai: "ใบสุขภาพดี (Healthy)", advice: "ดูแลตามปกติ บำรุงด้วยปุ๋ยและน้ำสม่ำเสมอ" }
-    };
-
-    async function loadModel() {
-        try {
-            const modelURL = URL + "model.json";
-            const metadataURL = URL + "metadata.json";
-            
-            // ตรวจสอบว่า Library พร้อมทำงาน
-            if (typeof tmImage !== 'undefined') {
-                model = await tmImage.load(modelURL, metadataURL);
-                resultText.innerHTML = "โมเดลพร้อมใช้งาน ✅";
-                classifyBtn.disabled = false;
-            } else {
-                throw new Error("Teachable Machine Library ไม่โหลด");
+        async function loadModel() {
+            try {
+                // ตรวจสอบว่า tmImage โหลดมาหรือยัง
+                if (typeof tmImage !== 'undefined') {
+                    model = await tmImage.load("model.json", "metadata.json");
+                    resultText.innerHTML = "พร้อมใช้งาน ✅";
+                    classifyBtn.disabled = false;
+                } else {
+                    throw new Error("Library ไม่โหลด");
+                }
+            } catch (err) {
+                resultText.innerHTML = "โหลดโมเดลไม่สำเร็จ ❌ (เช็คไฟล์ model.json)";
+                console.error(err);
             }
-        } catch (e) {
-            console.error(e);
-            resultText.innerHTML = "❌ โหลดโมเดลไม่สำเร็จ: " + e.message;
         }
-    }
 
-    async function startCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: "environment" } // ใช้กล้องหลังสำหรับมือถือ
-            });
-            video.srcObject = stream;
-        } catch (err) {
-            console.error("เข้าถึงกล้องไม่ได้: ", err);
-            resultText.innerHTML = "⚠️ ไม่สามารถเข้าถึงกล้องได้ (กรุณาอัปโหลดรูปแทน)";
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment" } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                resultText.innerHTML = "⚠️ เข้าถึงกล้องไม่ได้ (โปรดเลือกรูปภาพแทน)";
+            }
         }
-    }
 
-    function capture() {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0);
+        function capture() {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
 
-        preview.src = canvas.toDataURL("image/png");
-        preview.style.display = "block";
-        video.style.display = "none";
-        
-        document.getElementById("reCamBtn").style.display = "inline-block";
-        document.getElementById("captureBtn").style.display = "none";
-    }
-
-    function retake() {
-        preview.style.display = "none";
-        video.style.display = "block";
-        document.getElementById("reCamBtn").style.display = "none";
-        document.getElementById("captureBtn").style.display = "inline-block";
-    }
-
-    function uploadImage(event) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.src = e.target.result;
+            preview.src = canvas.toDataURL("image/png");
             preview.style.display = "block";
             video.style.display = "none";
-            document.getElementById("reCamBtn").style.display = "inline-block";
-            document.getElementById("captureBtn").style.display = "none";
-        };
-        if(event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
-    }
-
-    async function classify() {
-        if (!model) return;
-
-        resultText.innerHTML = "⌛ กำลังวิเคราะห์...";
-        
-        // รอให้ภาพโหลดเข้า preview ก่อนทำนาย
-        const prediction = await model.predict(preview);
-        
-        // หาตัวที่มีค่าความมั่นใจสูงสุด
-        const best = prediction.reduce((a, b) => a.probability > b.probability ? a : b);
-        const info = diseaseInfo[best.className];
-
-        if (info) {
-            resultText.innerHTML = `
-                <div style="text-align:left;">
-                    <b style="color:#2c3e50; font-size:20px;">ผลลัพธ์: ${info.thai}</b><br>
-                    <span style="color:#27ae60;">ความมั่นใจ: ${(best.probability * 100).toFixed(2)}%</span><br><br>
-                    <strong>คำแนะนำ:</strong><br>${info.advice}
-                </div>`;
-        } else {
-            resultText.innerHTML = "ไม่สามารถจำแนกได้ชัดเจน";
         }
-    }
 
-    window.onload = async () => {
-        video = document.getElementById("video");
-        preview = document.getElementById("preview");
-        resultText = document.getElementById("result");
-        classifyBtn = document.getElementById("classifyBtn");
+        function retake() {
+            preview.style.display = "none";
+            video.style.display = "block";
+            resultText.innerHTML = "พร้อมใช้งาน ✅";
+        }
 
-        await loadModel();
-        await startCamera();
-    };
-</script>
+        function uploadImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = "block";
+                video.style.display = "none";
+            };
+            reader.readAsDataURL(file);
+        }
 
+        async function classify() {
+            if (!model) return;
+            if (preview.style.display === "none") {
+                resultText.innerHTML = "กรุณาถ่ายภาพหรือเลือกรูปก่อน";
+                return;
+            }
+
+            resultText.innerHTML = "⌛ กำลังวิเคราะห์...";
+            const prediction = await model.predict(preview);
+            const best = prediction.reduce((a, b) => a.probability > b.probability ? a : b);
+            const info = diseaseInfo[best.className];
+
+            if (info) {
+                resultText.innerHTML = `
+                    <span style="font-size: 20px;">ผลลัพธ์: <b>${info.thai}</b></span><br>
+                    ความมั่นใจ: ${(best.probability * 100).toFixed(2)}%<br>
+                    <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; margin-top: 10px;">
+                        🩺 <b>วิธีดูแล:</b><br>${info.advice}
+                    </div>`;
+            } else {
+                resultText.innerHTML = `ผลลัพธ์: <b>${best.className}</b><br>มั่นใจ: ${(best.probability * 100).toFixed(2)}%`;
+            }
+        }
+
+        window.onload = async () => {
+            await loadModel();
+            await startCamera();
+        };
+    </script>
 </body>
 </html>
