@@ -4,11 +4,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Corn Disease Classifier</title>
 
+<!-- TensorFlow -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+
+<!-- Teachable Machine -->
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+
 </head>
 
 <body>
@@ -17,10 +20,10 @@
 
 <script>
 
-const URL = "./";
-let model;
+window.addEventListener("load", async () => {
 
-async function loadModel() {
+    const URL = "./";
+    let model;
 
     const modelURL = URL + "model.json";
     const metadataURL = URL + "metadata.json";
@@ -29,14 +32,9 @@ async function loadModel() {
 
     console.log("Model loaded successfully");
 
-}
-
-window.onload = () => {
-    loadModel();
-};
+});
 
 </script>
 
 </body>
 </html>
-
