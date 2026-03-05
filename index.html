@@ -1,13 +1,39 @@
+<!DOCTYPE html>
+<html lang="th">
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Corn Disease Classifier</title>
 
-<!-- TensorFlow.js -->
+<!-- TensorFlow -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4"></script>
 
-<!-- Teachable Machine Image Library -->
+<!-- Teachable Machine -->
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 
 </head>
+
+<body>
+
+<h1>Corn Disease Classifier</h1>
+
+<script>
+
+const URL = "./";
+let model;
+
+async function loadModel() {
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
+    model = await tmImage.load(modelURL, metadataURL);
+}
+
+window.onload = function(){
+    loadModel();
+};
+
+</script>
+
+</body>
+</html>
