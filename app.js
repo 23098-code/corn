@@ -1,14 +1,10 @@
-const MODEL_PATH = "https://23098-code.github.io/corn/";
+const URL = "https://23098-code.github.io/corn/";
 
-let model;
-let webcam;
-
-window.addEventListener("DOMContentLoaded", init);
+let model, webcam;
 
 async function init() {
-
-    const modelURL = MODEL_PATH + "model.json";
-    const metadataURL = MODEL_PATH + "metadata.json";
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
 
     model = await tmImage.load(modelURL, metadataURL);
 
@@ -16,26 +12,24 @@ async function init() {
     await webcam.setup();
     await webcam.play();
 
-    document.getElementById("webcam-container").appendChild(webcam.canvas);
+    window.requestAnimationFrame(loop);
 
-    requestAnimationFrame(loop);
+    document.getElementById("webcam-container").appendChild(webcam.canvas);
 }
 
 async function loop() {
     webcam.update();
-    requestAnimationFrame(loop);
+    window.requestAnimationFrame(loop);
 }
 
 async function predict() {
-
     const prediction = await model.predict(webcam.canvas);
 
-    let result = "";
-
+    let text = "";
     for (let i = 0; i < prediction.length; i++) {
-        result += prediction[i].className + " : " +
+        text += prediction[i].className + " : " +
         (prediction[i].probability * 100).toFixed(2) + "%<br>";
     }
 
-    document.getElementById("result").innerHTML = result;
+    document.getElementById("result").innerHTML = text;
 }
