@@ -1,6 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Corn Disease Classifier</title>
+
+<!-- TensorFlow -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+
+<!-- Teachable Machine -->
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:Segoe UI,sans-serif;
+background:linear-gradient(135deg,#0f3d2e,#145c43,#1f7a5a);
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+color:white;
+}
+
+.container{
+width:420px;
+background:rgba(255,255,255,0.1);
+backdrop-filter:blur(15px);
+padding:30px;
+border-radius:20px;
+text-align:center;
+}
+
+video,img{
+width:100%;
+border-radius:15px;
+margin-top:15px;
+}
+
+button,input[type="file"]{
+margin:8px;
+padding:12px 20px;
+border:none;
+border-radius:30px;
+font-weight:bold;
+cursor:pointer;
+}
+
+.primary{
+background:linear-gradient(90deg,#00c853,#00e676);
+color:black;
+}
+
+.secondary{
+background:rgba(255,255,255,0.25);
+color:white;
+}
+
+#result{
+margin-top:15px;
+}
+
+input[type="file"]{
+background:white;
+color:black;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🌽 โปรแกรมจำแนกโรคใบข้าวโพด</h2>
+
+<video id="video" autoplay playsinline></video>
+<img id="preview" style="display:none;">
+
+<div>
+<button class="primary" onclick="capture()">📸 ถ่ายภาพ</button>
+<button class="secondary" onclick="retake()">🔄 ถ่ายใหม่</button>
+<button class="secondary" onclick="classify()">🔍 จำแนก</button>
+</div>
+
+<div>
+<input type="file" accept="image/*" onchange="uploadImage(event)">
+</div>
+
+<div id="result">กำลังโหลดโมเดล...</div>
+
+</div>
+
 <script>
 
-const URL = "https://23098-code.github.io/corn/";
+const URL = "./";
 
 let model;
 let video = document.getElementById("video");
@@ -10,22 +107,22 @@ let stream;
 
 const diseaseInfo = {
 
-"blight": {
+blight:{
 thai:"โรคใบไหม้",
 advice:"ตัดใบที่เป็นโรคออก ลดความชื้น และพ่นสารป้องกันเชื้อรา"
 },
 
-"gray": {
+gray:{
 thai:"โรคใบจุดสีเทา",
 advice:"ปลูกให้โปร่ง ลดความชื้น และพ่นสารป้องกันเชื้อรา"
 },
 
-"rust": {
+rust:{
 thai:"โรคราสนิม",
 advice:"เก็บใบที่เป็นโรคออก และพ่นสารป้องกันเชื้อรา"
 },
 
-"health": {
+health:{
 thai:"ใบสุขภาพดี",
 advice:"ดูแลตามปกติ ให้น้ำและปุ๋ยเหมาะสม"
 }
@@ -53,6 +150,7 @@ video.srcObject = stream;
 function capture(){
 
 const canvas=document.createElement("canvas");
+
 canvas.width=video.videoWidth;
 canvas.height=video.videoHeight;
 
@@ -120,3 +218,6 @@ await startCamera();
 }
 
 </script>
+
+</body>
+</html>
