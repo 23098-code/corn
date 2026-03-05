@@ -1,4 +1,4 @@
-const MODEL_PATH = "./";
+const MODEL_PATH = "https://23098-code.github.io/corn/";
 
 let model;
 let webcam;
@@ -79,3 +79,4 @@ function classifyUpload() {
 
     predict(currentImage);
 }
+
