@@ -1,4 +1,4 @@
-const MODEL_PATH = "./my_model/";
+const MODEL_PATH = "./";
 
 let model;
 let webcam;
@@ -98,3 +98,4 @@ function showResult(predictions) {
         <p>Confidence: ${percent}%</p>
     `;
 }
+
