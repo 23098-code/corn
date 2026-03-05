@@ -1,88 +1,11 @@
-<!DOCTYPE html>
-
-<html lang="th">
-
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Corn Disease Classifier</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-
-<style>
-
-body{
-font-family:Arial;
-text-align:center;
-background:#f4f6f7;
-}
-
-h1{
-color:#2c3e50;
-}
-
-button{
-padding:10px 20px;
-margin:10px;
-font-size:16px;
-cursor:pointer;
-border:none;
-background:#2ecc71;
-color:white;
-border-radius:8px;
-}
-
-button:hover{
-background:#27ae60;
-}
-
-video,img{
-margin-top:10px;
-border-radius:10px;
-}
-
-#result{
-margin-top:20px;
-font-size:18px;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<h1>Corn Disease Classifier 🌽</h1>
-
-<video id="video" width="300" autoplay></video> <br>
-
-<button onclick="capture()">ถ่ายภาพ</button>
-
-<br><br>
-
-<input type="file" accept="image/*" onchange="uploadImage(event)">
-
-<br><br>
-
-<img id="preview" width="300" style="display:none;">
-
-<br>
-
-<button onclick="classify()">จำแนกโรค</button>
-
-<p id="result">กำลังโหลดโมเดล...</p>
-
 <script>
 
 const URL="./";
 
 let model;
-let video=document.getElementById("video");
-let preview=document.getElementById("preview");
-let resultText=document.getElementById("result");
+let video;
+let preview;
+let resultText;
 let stream;
 
 const diseaseInfo={
@@ -185,12 +108,13 @@ resultText.innerHTML=
 
 window.onload=async()=>{
 
+video=document.getElementById("video");
+preview=document.getElementById("preview");
+resultText=document.getElementById("result");
+
 await loadModel();
 await startCamera();
 
 }
 
 </script>
-
-</body>
-</html>
