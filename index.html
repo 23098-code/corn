@@ -1,17 +1,189 @@
-async function loadModel() {
-    try {
-        if (typeof tmImage !== 'undefined') {
-            // ใส่ URL แบบเต็มป้องกัน Path เพี้ยน
-            const modelPath = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-            model = await tmImage.load(modelPath + "model.json", modelPath + "metadata.json");
-            resultText.innerHTML = "โมเดลพร้อมใช้งาน ✅";
-            classifyBtn.disabled = false;
-        } else {
-            resultText.innerHTML = "❌ Library โหลดไม่สำเร็จ (Internet ช้าหรือโดนบล็อก)";
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corn Disease Classifier</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f3d2e, #145c43, #1f7a5a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
         }
-    } catch (err) {
-        // แสดง Error จริงๆ ออกมาบนหน้าจอเลย
-        resultText.innerHTML = "❌ โหลดโมเดลไม่ได้: " + err.message;
-        console.error(err);
-    }
-}
+        .container {
+            width: 90%;
+            max-width: 420px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        video, img {
+            width: 100%;
+            border-radius: 15px;
+            margin-top: 15px;
+            background: #000;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 15px;
+        }
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .primary { background: linear-gradient(90deg, #00c853, #00e676); color: black; }
+        .secondary { background: rgba(255, 255, 255, 0.25); color: white; }
+        .flip-btn { background: #f39c12; color: white; }
+        #result { margin-top: 15px; line-height: 1.6; min-height: 60px; }
+        input[type="file"] { margin-top: 15px; background: white; color: black; padding: 8px; border-radius: 10px; width: 80%; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>🌽 จำแนกโรคใบข้าวโพด</h2>
+
+        <video id="video" autoplay playsinline></video>
+        <img id="preview" style="display:none;">
+
+        <div class="button-group">
+            <button class="primary" onclick="capture()">📸 ถ่ายภาพ</button>
+            <button class="flip-btn" id="flipBtn" onclick="flipCamera()">🔄 สลับกล้อง</button>
+            <button class="secondary" onclick="retake()">♻️ เริ่มใหม่</button>
+            <button class="primary" id="classifyBtn" onclick="classify()" disabled style="background:#3498db; color:white;">🔍 วิเคราะห์</button>
+        </div>
+
+        <input type="file" accept="image/*" onchange="uploadImage(event)">
+
+        <div id="result">⌛ กำลังเตรียมการ...</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+
+    <script>
+        let model;
+        let currentFacingMode = "environment"; 
+        let video = document.getElementById("video");
+        let preview = document.getElementById("preview");
+        let resultText = document.getElementById("result");
+        let classifyBtn = document.getElementById("classifyBtn");
+
+        const diseaseInfo = {
+            "blight": { thai: "โรคใบไหม้", advice: "ตัดใบที่เป็นโรคออก ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
+            "gray": { thai: "โรคใบจุดสีเทา", advice: "ปลูกให้โปร่ง ลดความชื้น และพ่นสารป้องกันเชื้อรา" },
+            "rust": { thai: "โรคราสนิม", advice: "เก็บใบที่เป็นโรคออก และพ่นสารป้องกันเชื้อรา" },
+            "health": { thai: "ใบสุขภาพดี", advice: "ดูแลตามปกติ ให้น้ำและปุ๋ยเหมาะสม" }
+        };
+
+        // ฟังก์ชันโหลดโมเดลแบบ Full Path ป้องกันมือถือหาไฟล์ไม่เจอ
+        async function loadModel() {
+            try {
+                if (typeof tmImage !== 'undefined') {
+                    // สร้าง Path อัตโนมัติจาก URL ปัจจุบัน
+                    const path = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+                    model = await tmImage.load(path + "model.json", path + "metadata.json");
+                    resultText.innerHTML = "โมเดลพร้อมใช้งาน ✅";
+                    classifyBtn.disabled = false;
+                } else {
+                    resultText.innerHTML = "❌ Library ไม่โหลด กรุณารีเฟรช";
+                }
+            } catch (err) {
+                resultText.innerHTML = "❌ โหลดโมเดลไม่ได้: " + err.message;
+            }
+        }
+
+        async function startCamera() {
+            if (window.stream) {
+                window.stream.getTracks().forEach(track => track.stop());
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentFacingMode } 
+                });
+                window.stream = stream;
+                video.srcObject = stream;
+            } catch (err) {
+                resultText.innerHTML = "⚠️ กล้องมีปัญหา หรือโปรดใช้การอัปโหลดรูปแทน";
+            }
+        }
+
+        async function flipCamera() {
+            currentFacingMode = (currentFacingMode === "user") ? "environment" : "user";
+            await startCamera();
+        }
+
+        function capture() {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext("2d").drawImage(video, 0, 0);
+            preview.src = canvas.toDataURL("image/png");
+            preview.style.display = "block";
+            video.style.display = "none";
+            document.getElementById("flipBtn").style.display = "none";
+        }
+
+        function retake() {
+            preview.style.display = "none";
+            video.style.display = "block";
+            document.getElementById("flipBtn").style.display = "inline-block";
+            resultText.innerHTML = "พร้อมใช้งาน ✅";
+        }
+
+        function uploadImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = "block";
+                video.style.display = "none";
+                document.getElementById("flipBtn").style.display = "none";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function classify() {
+            if (!model || preview.style.display === "none") return;
+            resultText.innerHTML = "⌛ กำลังวิเคราะห์...";
+            try {
+                const prediction = await model.predict(preview);
+                const best = prediction.reduce((a, b) => a.probability > b.probability ? a : b);
+                const info = diseaseInfo[best.className];
+                if (info) {
+                    resultText.innerHTML = `
+                        <b>${info.thai}</b> (${(best.probability * 100).toFixed(2)}%)<br>
+                        <div style="background: rgba(0,0,0,0.2); padding: 8px; border-radius: 10px; margin-top: 5px; font-size: 0.85rem;">
+                            🩺 <b>วิธีดูแล:</b> ${info.advice}
+                        </div>`;
+                } else {
+                    resultText.innerHTML = `ผลลัพธ์: ${best.className}`;
+                }
+            } catch (e) {
+                resultText.innerHTML = "❌ การวิเคราะห์ผิดพลาด";
+            }
+        }
+
+        window.onload = async () => {
+            await loadModel();
+            await startCamera();
+        };
+    </script>
+</body>
+</html>
