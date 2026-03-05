@@ -5,6 +5,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Corn Disease Classifier</title>
+</head>
+
+<body>
+
+<h1>Corn Disease Classifier</h1>
 
 <!-- TensorFlow -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
@@ -12,27 +17,23 @@
 <!-- Teachable Machine -->
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
-</head>
-
-<body>
-
-<h1>Corn Disease Classifier</h1>
-
 <script>
 
-window.addEventListener("load", async () => {
+const URL = "./";
+let model;
 
-    const URL = "./";
-    let model;
+async function loadModel(){
 
     const modelURL = URL + "model.json";
     const metadataURL = URL + "metadata.json";
 
     model = await tmImage.load(modelURL, metadataURL);
 
-    console.log("Model loaded successfully");
+    console.log("Model loaded");
 
-});
+}
+
+window.onload = loadModel;
 
 </script>
 
